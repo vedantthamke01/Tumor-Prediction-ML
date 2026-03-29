@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tumor Prediction — AI Classifier</title>
+  <meta name="description" content="AI-powered tumor classification using Logistic Regression running entirely in the browser. Predict benign or malignant tumors by size and density." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #060d1c;
+      --surface: #0f172a;
+      --card:    #1e293b;
+      --border:  #334155;
+      --accent:  #818cf8;
+      --accent2: #38bdf8;
+      --danger:  #f472b6;
+      --safe:    #34d399;
+      --gold:    #fbbf24;
+      --text:    #e2e8f0;
+      --muted:   #94a3b8;
+      --radius:  16px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    /* ── Header ── */
+    header { text-align: center; margin-bottom: 44px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(129,140,248,.15);
+      border: 1px solid rgba(129,140,248,.35);
+      color: var(--accent);
+      font-size: 11px; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: 4px 14px; border-radius: 99px; margin-bottom: 18px;
+    }
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700;
+      background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 55%, #38bdf8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; line-height: 1.15;
+    }
+    .subtitle { margin-top: 10px; color: var(--muted); font-size: 15px; max-width: 480px; margin-inline: auto; }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px; width: 100%; max-width: 1060px;
+    }
+    @media (max-width: 780px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    /* ── Form ── */
+    .form-title {
+      font-size: 12px; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 24px;
+    }
+    .field { margin-bottom: 26px; }
+    label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 10px;
+    }
+    .val-badge {
+      background: rgba(129,140,248,.18); color: var(--accent);
+      border-radius: 6px; padding: 2px 10px;
+      font-size: 13px; font-weight: 700; min-width: 44px; text-align: center;
+    }
+    input[type=range] {
+      -webkit-appearance: none; width: 100%; height: 6px;
+      border-radius: 99px; background: var(--border); outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: 3px solid var(--bg);
+      box-shadow: 0 0 10px rgba(129,140,248,.6);
+      transition: transform .15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .track-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    .divider { height: 1px; background: var(--border); margin: 22px 0; }
+
+    .num-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .num-group { display: flex; flex-direction: column; gap: 6px; }
+    .num-group label { font-size: 12px; margin-bottom: 0; }
+    .num-group input[type=number] {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      padding: 9px 12px; font-size: 14px; font-family: inherit; width: 100%;
+      outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .num-group input[type=number]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(129,140,248,.18);
+    }
+
+    /* ── Button ── */
+    #predict-btn {
+      width: 100%; padding: 15px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1 0%, #818cf8 50%, #38bdf8 100%);
+      color: #fff; font-size: 15px; font-weight: 700;
+      letter-spacing: .04em; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity .2s, transform .15s;
+      box-shadow: 0 4px 24px rgba(99,102,241,.4);
+    }
+    #predict-btn:hover { opacity: .9; transform: translateY(-1px); }
+    #predict-btn:active { transform: translateY(0); }
+    .spinner {
+      display: none; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+      border-radius: 50%; animation: spin .6s linear infinite;
+    }
+    #predict-btn.loading .spinner { display: block; }
+    #predict-btn.loading { opacity: .6; pointer-events: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result ── */
+    .result-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .placeholder {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px; color: var(--muted); text-align: center; padding: 40px 20px;
+    }
+    .placeholder svg { opacity: .22; }
+    .placeholder p { font-size: 14px; line-height: 1.7; }
+
+    #result-content { display: none; flex-direction: column; gap: 20px; }
+
+    .verdict {
+      display: flex; align-items: center; gap: 16px;
+      padding: 18px 20px; border-radius: 12px; border: 1px solid;
+      animation: fadeIn .4s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .verdict.benign    { background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.3); }
+    .verdict.malignant { background: rgba(244,114,182,.08); border-color: rgba(244,114,182,.3); }
+    .verdict-icon { font-size: 2.4rem; line-height: 1; }
+    .v-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .v-result { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
+    .benign    .v-result { color: var(--safe); }
+    .malignant .v-result { color: var(--danger); }
+
+    .sec-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 14px; }
+    .prob-row { margin-bottom: 12px; }
+    .prob-meta { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .prob-meta span:first-child { color: var(--text); font-weight: 500; }
+    .prob-meta span:last-child  { color: var(--muted); font-weight: 600; }
+    .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width .8s cubic-bezier(.4,0,.2,1); width: 0; }
+    .bar-fill.benign-bar    { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+    .bar-fill.malignant-bar { background: linear-gradient(90deg, #f472b6, #fb7185); }
+
+    .chart-wrap { border-radius: 10px; border: 1px solid var(--border); overflow: hidden; background: #1e293b; padding: 12px; }
+    canvas { display: block; }
+
+    /* ── Footer ── */
+    footer { margin-top: 48px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.8; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge"><span class="pulse"></span> Logistic Regression · Client-Side ML</div>
+  <h1>Tumor Prediction</h1>
+  <p class="subtitle">ML model trained &amp; runs entirely in your browser — no server needed. Enter tumor characteristics to get an instant diagnosis.</p>
+</header>
+
+<div class="layout">
+
+  <!-- Input Card -->
+  <div class="card">
+    <p class="form-title">📊 Input Parameters</p>
+
+    <div class="field">
+      <label for="size-slider">Tumor Size (cm) <span class="val-badge" id="size-display">2.0</span></label>
+      <input type="range" id="size-slider" min="0.1" max="4" step="0.1" value="2.0" oninput="syncSlider('size')" />
+      <div class="track-label"><span>0.1</span><span>4.0</span></div>
+    </div>
+
+    <div class="field">
+      <label for="density-slider">Tumor Density <span class="val-badge" id="density-display">2.0</span></label>
+      <input type="range" id="density-slider" min="0.1" max="4" step="0.1" value="2.0" oninput="syncSlider('density')" />
+      <div class="track-label"><span>0.1</span><span>4.0</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="num-row">
+      <div class="num-group">
+        <label for="size-num">Size (precise)</label>
+        <input type="number" id="size-num" min="0.1" max="4" step="0.1" value="2.0" oninput="syncNum('size')" />
+      </div>
+      <div class="num-group">
+        <label for="density-num">Density (precise)</label>
+        <input type="number" id="density-num" min="0.1" max="4" step="0.1" value="2.0" oninput="syncNum('density')" />
+      </div>
+    </div>
+
+    <button id="predict-btn" onclick="runPrediction()">
+      <div class="spinner"></div>
+      Predict Tumor Type
+    </button>
+  </div>
+
+  <!-- Result Card -->
+  <div class="result-card">
+    <div class="placeholder" id="placeholder">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="30" stroke="#334155" stroke-width="2"/>
+        <path d="M20 32 Q32 18 44 32 Q32 46 20 32Z" stroke="#334155" stroke-width="2" fill="none"/>
+        <circle cx="32" cy="32" r="5" fill="#334155"/>
+      </svg>
+      <p>Adjust the sliders and click<br/><strong style="color:#818cf8">Predict Tumor Type</strong><br/>to see the diagnostic result.</p>
+    </div>
+
+    <div id="result-content">
+      <div class="verdict" id="verdict-box">
+        <div class="verdict-icon" id="verdict-icon">🔬</div>
+        <div>
+          <div class="v-label">Diagnosis</div>
+          <div class="v-result" id="verdict-label">—</div>
+        </div>
+      </div>
+
+      <div>
+        <p class="sec-title">Probability Breakdown</p>
+        <div class="prob-row">
+          <div class="prob-meta"><span>🟢 Benign</span><span id="benign-pct">—</span></div>
+          <div class="bar-track"><div class="bar-fill benign-bar" id="benign-bar"></div></div>
+        </div>
+        <div class="prob-row">
+          <div class="prob-meta"><span>🔴 Malignant</span><span id="malignant-pct">—</span></div>
+          <div class="bar-track"><div class="bar-fill malignant-bar" id="malignant-bar"></div></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="sec-title">Decision Boundary Plot</p>
+        <div class="chart-wrap">
+          <canvas id="boundary-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Logistic Regression trained in-browser · No data sent to any server<br/>
+  <a href="https://github.com/vedantthamke01/Tumor-Prediction-ML" target="_blank">View Source on GitHub</a> · © 2026 vedantthamke01
+</footer>
+
+<script>
+  // ── Training Data ─────────────────────────────────────────────────────────
+  const TRAIN_X = [[0.5,1.5],[1,1],[1.5,0.5],[3,0.5],[2,2],[1,2.5]];
+  const TRAIN_Y = [0,0,0,1,1,1];
+
+  // ── Logistic Regression (Gradient Descent) ────────────────────────────────
+  function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+
+  function trainModel(X, Y, lr = 0.5, epochs = 20000) {
+    let w0 = 0, w1 = 0, b = 0;
+    const n = X.length;
+    for (let e = 0; e < epochs; e++) {
+      let dw0 = 0, dw1 = 0, db = 0;
+      for (let i = 0; i < n; i++) {
+        const z    = w0 * X[i][0] + w1 * X[i][1] + b;
+        const pred = sigmoid(z);
+        const err  = pred - Y[i];
+        dw0 += err * X[i][0];
+        dw1 += err * X[i][1];
+        db  += err;
+      }
+      w0 -= (lr / n) * dw0;
+      w1 -= (lr / n) * dw1;
+      b  -= (lr / n) * db;
+    }
+    return { w0, w1, b };
+  }
+
+  // Train once on load
+  const model = trainModel(TRAIN_X, TRAIN_Y);
+
+  function predict(x0, x1) {
+    const z     = model.w0 * x0 + model.w1 * x1 + model.b;
+    const prob1 = sigmoid(z);
+    const prob0 = 1 - prob1;
+    return {
+      label:        prob1 >= 0.5 ? 'Malignant' : 'Benign',
+      malignant_prob: Math.round(prob1 * 1000) / 10,
+      benign_prob:    Math.round(prob0 * 1000) / 10,
+    };
+  }
+
+  // ── Slider / Input Sync ───────────────────────────────────────────────────
+  function syncSlider(key) {
+    const val = parseFloat(document.getElementById(key + '-slider').value).toFixed(1);
+    document.getElementById(key + '-display').textContent = val;
+    document.getElementById(key + '-num').value = val;
+  }
+  function syncNum(key) {
+    const val = parseFloat(document.getElementById(key + '-num').value || 0).toFixed(1);
+    document.getElementById(key + '-display').textContent = val;
+    document.getElementById(key + '-slider').value = val;
+  }
+
+  // ── Chart ─────────────────────────────────────────────────────────────────
+  let chartInstance = null;
+
+  function buildDecisionBoundary() {
+    const pts = [];
+    for (let x = 0; x <= 4.1; x += 0.05) {
+      const y = -(model.w0 * x + model.b) / model.w1;
+      if (y >= 0 && y <= 4) pts.push({ x: parseFloat(x.toFixed(3)), y: parseFloat(y.toFixed(3)) });
+    }
+    return pts;
+  }
+
+  function renderChart(x0, x1) {
+    const benignPts    = TRAIN_X.filter((_, i) => TRAIN_Y[i] === 0).map(p => ({ x: p[0], y: p[1] }));
+    const malignPts    = TRAIN_X.filter((_, i) => TRAIN_Y[i] === 1).map(p => ({ x: p[0], y: p[1] }));
+    const boundaryPts  = buildDecisionBoundary();
+    const userPt       = [{ x: x0, y: x1 }];
+
+    const cfg = {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Benign',
+            data: benignPts,
+            backgroundColor: '#38bdf8',
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            order: 2,
+          },
+          {
+            label: 'Malignant',
+            data: malignPts,
+            backgroundColor: 'transparent',
+            borderColor: '#f472b6',
+            pointStyle: 'crossRot',
+            pointRadius: 9,
+            pointBorderWidth: 2.5,
+            pointHoverRadius: 11,
+            order: 2,
+          },
+          {
+            label: 'Decision Boundary',
+            data: boundaryPts,
+            type: 'line',
+            borderColor: '#a78bfa',
+            borderWidth: 2,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            order: 3,
+          },
+          {
+            label: 'Your Input',
+            data: userPt,
+            backgroundColor: '#fbbf24',
+            borderColor: '#fff',
+            pointStyle: 'star',
+            pointRadius: 14,
+            pointBorderWidth: 1,
+            pointHoverRadius: 16,
+            order: 1,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 500 },
+        plugins: {
+          legend: {
+            labels: { color: '#cbd5e1', font: { size: 12 }, usePointStyle: true, padding: 16 }
+          },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            titleColor: '#e2e8f0',
+            bodyColor: '#94a3b8',
+            borderColor: '#334155',
+            borderWidth: 1,
+          }
+        },
+        scales: {
+          x: {
+            min: 0, max: 4,
+            title: { display: true, text: 'Tumor Size', color: '#94a3b8', font: { size: 12 } },
+            ticks: { color: '#64748b', stepSize: 0.5 },
+            grid: { color: '#1e293b' },
+          },
+          y: {
+            min: 0, max: 4,
+            title: { display: true, text: 'Tumor Density', color: '#94a3b8', font: { size: 12 } },
+            ticks: { color: '#64748b', stepSize: 0.5 },
+            grid: { color: '#1e293b' },
+          }
+        }
+      }
+    };
+
+    if (chartInstance) {
+      chartInstance.data = cfg.data;
+      chartInstance.update();
+    } else {
+      chartInstance = new Chart(document.getElementById('boundary-chart'), cfg);
+    }
+  }
+
+  // ── Prediction ────────────────────────────────────────────────────────────
+  function runPrediction() {
+    const btn = document.getElementById('predict-btn');
+    btn.classList.add('loading');
+
+    // Small timeout so spinner renders
+    setTimeout(() => {
+      const x0 = parseFloat(document.getElementById('size-num').value)    || 2.0;
+      const x1 = parseFloat(document.getElementById('density-num').value) || 2.0;
+      const result = predict(x0, x1);
+      renderResult(result, x0, x1);
+      btn.classList.remove('loading');
+    }, 120);
+  }
+
+  function renderResult(data, x0, x1) {
+    document.getElementById('placeholder').style.display = 'none';
+    const rc = document.getElementById('result-content');
+    rc.style.display = 'flex';
+
+    const isMal = data.label === 'Malignant';
+    document.getElementById('verdict-box').className    = 'verdict ' + (isMal ? 'malignant' : 'benign');
+    document.getElementById('verdict-icon').textContent = isMal ? '⚠️' : '✅';
+    document.getElementById('verdict-label').textContent = data.label;
+
+    document.getElementById('benign-pct').textContent    = data.benign_prob + '%';
+    document.getElementById('malignant-pct').textContent = data.malignant_prob + '%';
+
+    requestAnimationFrame(() => {
+      document.getElementById('benign-bar').style.width    = data.benign_prob + '%';
+      document.getElementById('malignant-bar').style.width = data.malignant_prob + '%';
+    });
+
+    renderChart(x0, x1);
+  }
+</script>
+</body>
+</html>
