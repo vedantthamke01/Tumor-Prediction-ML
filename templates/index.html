@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tumor Prediction — AI Classifier</title>
+  <meta name="description" content="AI-powered tumor classification using Logistic Regression. Predict benign or malignant tumors based on size and density." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #060d1c;
+      --surface: #0f172a;
+      --card:    #1e293b;
+      --border:  #334155;
+      --accent:  #818cf8;
+      --accent2: #38bdf8;
+      --danger:  #f472b6;
+      --safe:    #34d399;
+      --text:    #e2e8f0;
+      --muted:   #94a3b8;
+      --radius:  16px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    /* Header */
+    header { text-align: center; margin-bottom: 44px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(129,140,248,.15);
+      border: 1px solid rgba(129,140,248,.35);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 60%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+    }
+    .subtitle {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 460px;
+    }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 1060px;
+    }
+    @media (max-width: 780px) { .layout { grid-template-columns: 1fr; } }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    /* Form */
+    .form-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .field { margin-bottom: 28px; }
+    label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .val-badge {
+      background: rgba(129,140,248,.18);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 2px 9px;
+      font-size: 13px;
+      font-weight: 600;
+      min-width: 42px;
+      text-align: center;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 99px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: 3px solid var(--bg);
+      box-shadow: 0 0 8px rgba(129,140,248,.55);
+      transition: transform .15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .track-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+    .num-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .num-group { display: flex; flex-direction: column; gap: 6px; }
+    .num-group label { font-size: 12px; margin-bottom: 0; }
+    .num-group input[type=number] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      width: 100%;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .num-group input[type=number]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(129,140,248,.18);
+    }
+
+    /* Button */
+    #predict-btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1 0%, #818cf8 50%, #38bdf8 100%);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity .2s, transform .15s;
+      box-shadow: 0 4px 24px rgba(99,102,241,.4);
+    }
+    #predict-btn:hover { opacity: .9; transform: translateY(-1px); }
+    #predict-btn:active { transform: translateY(0); }
+    #predict-btn.loading { opacity: .65; pointer-events: none; }
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    #predict-btn.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Result panel */
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+    }
+    .placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: var(--muted);
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .placeholder svg { opacity: .25; }
+    .placeholder p { font-size: 14px; line-height: 1.7; }
+
+    #result-content { display: none; flex-direction: column; gap: 20px; }
+
+    .verdict {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 20px;
+      border-radius: 12px;
+      border: 1px solid;
+    }
+    .verdict.benign    { background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.3); }
+    .verdict.malignant { background: rgba(244,114,182,.08); border-color: rgba(244,114,182,.3); }
+    .verdict-icon { font-size: 2.4rem; line-height: 1; }
+    .v-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    }
+    .v-result { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
+    .benign    .v-result { color: var(--safe); }
+    .malignant .v-result { color: var(--danger); }
+
+    .sec-title {
+      font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .07em;
+      color: var(--muted); margin-bottom: 14px;
+    }
+    .prob-row { margin-bottom: 12px; }
+    .prob-meta { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .prob-meta span:first-child { color: var(--text); font-weight: 500; }
+    .prob-meta span:last-child  { color: var(--muted); font-weight: 600; }
+    .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width .8s cubic-bezier(.4,0,.2,1); width: 0; }
+    .bar-fill.benign-bar    { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+    .bar-fill.malignant-bar { background: linear-gradient(90deg, #f472b6, #fb7185); }
+
+    .chart-section img { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+
+    footer { margin-top: 48px; color: var(--muted); font-size: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">
+    <svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#818cf8"/></svg>
+    Logistic Regression · Live Prediction
+  </div>
+  <h1>Tumor Prediction</h1>
+  <p class="subtitle">Enter tumor characteristics below. The AI classifier will predict malignancy in real time.</p>
+</header>
+
+<div class="layout">
+
+  <!-- Input Card -->
+  <div class="card">
+    <p class="form-title">📊 Input Parameters</p>
+
+    <div class="field">
+      <label for="size-slider">Tumor Size (cm) <span class="val-badge" id="size-display">2.0</span></label>
+      <input type="range" id="size-slider" min="0.1" max="4" step="0.1" value="2.0" />
+      <div class="track-label"><span>0.1</span><span>4.0</span></div>
+    </div>
+
+    <div class="field">
+      <label for="density-slider">Tumor Density <span class="val-badge" id="density-display">2.0</span></label>
+      <input type="range" id="density-slider" min="0.1" max="4" step="0.1" value="2.0" />
+      <div class="track-label"><span>0.1</span><span>4.0</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="num-row">
+      <div class="num-group">
+        <label for="size-num">Size (precise)</label>
+        <input type="number" id="size-num" min="0.1" max="4" step="0.1" value="2.0" />
+      </div>
+      <div class="num-group">
+        <label for="density-num">Density (precise)</label>
+        <input type="number" id="density-num" min="0.1" max="4" step="0.1" value="2.0" />
+      </div>
+    </div>
+
+    <button id="predict-btn" onclick="runPrediction()">
+      <div class="spinner"></div>
+      Predict Tumor Type
+    </button>
+  </div>
+
+  <!-- Result Card -->
+  <div class="result-card">
+    <div class="placeholder" id="placeholder">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="30" stroke="#334155" stroke-width="2"/>
+        <path d="M20 32 Q32 18 44 32 Q32 46 20 32Z" stroke="#334155" stroke-width="2" fill="none"/>
+        <circle cx="32" cy="32" r="5" fill="#334155"/>
+      </svg>
+      <p>Adjust the sliders and click<br/><strong style="color:#818cf8">Predict Tumor Type</strong><br/>to see the result &amp; decision boundary.</p>
+    </div>
+
+    <div id="result-content">
+      <div class="verdict" id="verdict-box">
+        <div class="verdict-icon" id="verdict-icon">🔬</div>
+        <div>
+          <div class="v-label">Diagnosis</div>
+          <div class="v-result" id="verdict-label">—</div>
+        </div>
+      </div>
+
+      <div>
+        <p class="sec-title">Probability Breakdown</p>
+        <div class="prob-row">
+          <div class="prob-meta"><span>🟢 Benign</span><span id="benign-pct">—</span></div>
+          <div class="bar-track"><div class="bar-fill benign-bar" id="benign-bar"></div></div>
+        </div>
+        <div class="prob-row">
+          <div class="prob-meta"><span>🔴 Malignant</span><span id="malignant-pct">—</span></div>
+          <div class="bar-track"><div class="bar-fill malignant-bar" id="malignant-bar"></div></div>
+        </div>
+      </div>
+
+      <div class="chart-section">
+        <p class="sec-title">Decision Boundary Plot</p>
+        <img id="chart-img" src="" alt="Decision boundary chart" />
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Built with Logistic Regression · scikit-learn · Flask · © 2026</footer>
+
+<script>
+  const sizeSlider     = document.getElementById('size-slider');
+  const densitySlider  = document.getElementById('density-slider');
+  const sizeNum        = document.getElementById('size-num');
+  const densityNum     = document.getElementById('density-num');
+  const sizeDisplay    = document.getElementById('size-display');
+  const densityDisplay = document.getElementById('density-display');
+
+  sizeSlider.addEventListener('input', () => {
+    sizeDisplay.textContent = sizeNum.value = parseFloat(sizeSlider.value).toFixed(1);
+  });
+  densitySlider.addEventListener('input', () => {
+    densityDisplay.textContent = densityNum.value = parseFloat(densitySlider.value).toFixed(1);
+  });
+  sizeNum.addEventListener('input', () => {
+    sizeSlider.value = sizeNum.value;
+    sizeDisplay.textContent = parseFloat(sizeNum.value || 0).toFixed(1);
+  });
+  densityNum.addEventListener('input', () => {
+    densitySlider.value = densityNum.value;
+    densityDisplay.textContent = parseFloat(densityNum.value || 0).toFixed(1);
+  });
+
+  async function runPrediction() {
+    const btn = document.getElementById('predict-btn');
+    btn.classList.add('loading');
+    const size    = parseFloat(sizeNum.value)    || 2.0;
+    const density = parseFloat(densityNum.value) || 2.0;
+    try {
+      const res  = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ size, density })
+      });
+      const data = await res.json();
+      renderResult(data);
+    } catch(e) {
+      alert('Prediction failed. Make sure the Flask server is running.');
+    } finally {
+      btn.classList.remove('loading');
+    }
+  }
+
+  function renderResult(data) {
+    document.getElementById('placeholder').style.display = 'none';
+    const rc = document.getElementById('result-content');
+    rc.style.display = 'flex';
+
+    const isMalignant = data.label === 'Malignant';
+    document.getElementById('verdict-box').className = 'verdict ' + (isMalignant ? 'malignant' : 'benign');
+    document.getElementById('verdict-icon').textContent  = isMalignant ? '⚠️' : '✅';
+    document.getElementById('verdict-label').textContent = data.label;
+
+    document.getElementById('benign-pct').textContent    = data.benign_prob + '%';
+    document.getElementById('malignant-pct').textContent = data.malignant_prob + '%';
+
+    requestAnimationFrame(() => {
+      document.getElementById('benign-bar').style.width    = data.benign_prob + '%';
+      document.getElementById('malignant-bar').style.width = data.malignant_prob + '%';
+    });
+
+    document.getElementById('chart-img').src = 'data:image/png;base64,' + data.chart;
+  }
+</script>
+</body>
+</html>
